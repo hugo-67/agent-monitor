@@ -28,6 +28,7 @@ function line(value: unknown): string {
 
 function waitFor(predicate: () => boolean | Promise<boolean>, timeoutMs = 12_000): Promise<void> {
   const started = Date.now();
+  const source = new Error('waitFor call site').stack;
   return new Promise((resolve, reject) => {
     const tick = async () => {
       if (await predicate()) {
@@ -35,7 +36,7 @@ function waitFor(predicate: () => boolean | Promise<boolean>, timeoutMs = 12_000
         return;
       }
       if (Date.now() - started >= timeoutMs) {
-        reject(new Error('timed out waiting for monitor update'));
+        reject(new Error(`timed out waiting for monitor update\n${source}`));
         return;
       }
       setTimeout(() => void tick(), 20);
