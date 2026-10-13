@@ -71,3 +71,29 @@ The checks do not replace dynamic sandbox or malicious-native-code analysis.
 Set `AGENT_MONITOR_POLLING=1` to use a polling trace watcher when
 native filesystem change notifications are unavailable or unreliable.
 Polling has higher filesystem overhead than native notifications.
+
+## Ubuntu 24.04+ AppArmor namespace setup
+
+Ubuntu's AppArmor restrictions on unprivileged user namespaces can cause
+electron-builder's AppRun shim to append `--no-sandbox`. The hardened
+application correctly rejects that flag. Rebuilding the AppImage alone
+cannot change the host's namespace policy.
+
+**Recommended (Ubuntu .deb):** download the hardened .deb from the
+[Ubuntu fix release](https://github.com/hugo-67/agent-monitor/releases/tag/ubuntu-sandbox-fix-20261013),
+then run `sudo apt install ./agent-monitor-*.deb`. The package installs
+a profile allowing user namespaces only for the installed Agent Monitor
+executable, preserving the Electron/Chromium sandbox.
+
+**Portable AppImage:** keep the AppImage at a stable absolute path,
+make it executable, then download `setup-ubuntu-appimage.sh` from the
+same release and run
+`bash setup-ubuntu-appimage.sh /absolute/path/to/agent-monitor-*.AppImage`.
+The script needs sudo only to install/reload
+`/etc/apparmor.d/agent-monitor-appimage`; this profile attaches to the
+exact AppImage path. If you move or rename it, rerun the script.
+Undo with `bash setup-ubuntu-appimage.sh --remove`.
+
+The profile follows Ubuntu's recommended narrowly scoped
+`flags=(unconfined) { userns, }` pattern. It does not globally disable
+AppArmor, bypass Chromium's sandbox, or access your agent trace files.
