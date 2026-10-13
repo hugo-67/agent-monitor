@@ -1,0 +1,8 @@
+# Agent Monitor .deb: Ubuntu user namespace permission, app-specific.
+abi <abi/4.0>,
+include <tunables/global>
+
+profile agent-monitor-deb "/opt/Agent Monitor/agent-monitor" flags=(unconfined) {
+  userns,
+  include if exists <local/agent-monitor-deb>
+}
