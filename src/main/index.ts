@@ -1,13 +1,23 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import path from 'node:path';
-import { assertSandboxEnabled } from './security';
+import { sandboxBypassRequested } from './security';
 import { TraceMonitor } from './trace-monitor/TraceMonitor';
 import { HermesMonitor } from './trace-monitor/HermesMonitor';
 import { MultiSourceMonitor } from './trace-monitor/MultiSourceMonitor';
 
 // Fail closed even if an AppImage runtime or a .desktop launcher adds --no-sandbox.
 // Electron's renderer sandbox flag alone cannot countermand that Chromium flag.
-assertSandboxEnabled(process.argv, (name) => app.commandLine.hasSwitch(name));
+if (sandboxBypassRequested(process.argv, name => app.commandLine.hasSwitch(name))) {
+  const message =
+    'Agent Monitor refuses to start without the Chromium sandbox.\n\n' +
+    'Ubuntu AppArmor may restrict unprivileged user namespaces, so the AppImage launcher adds --no-sandbox.\n\n' +
+    'Recommended: install the Ubuntu .deb release, which ships a per-app AppArmor profile.\n' +
+    'Portable AppImage: run setup-ubuntu-appimage.sh with the exact absolute AppImage path, then launch it again.\n\n' +
+    'Do not disable AppArmor globally or pass --no-sandbox.';
+  console.error(message);
+  dialog.showErrorBox('Agent Monitor: Ubuntu sandbox configuration required', message);
+  app.exit(1);
+}
 
 let window: BrowserWindow | null = null;
 const idle = Number(process.env.AGENT_MONITOR_IDLE_MS);
