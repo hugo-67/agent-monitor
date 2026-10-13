@@ -46,3 +46,10 @@ linux:
   target:
     - target: AppImage
       arch: [x64]
+
+# Override electron-builder v26's unsafe default .desktop Exec=AppRun --no-sandbox.
+# The AppImage runtime may still append --no-sandbox on systems where user
+# namespaces are blocked; src/main/security.ts makes that a startup error.
+appImage:
+  executableArgs:
+    - --disable-setuid-sandbox

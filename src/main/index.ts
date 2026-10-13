@@ -1,8 +1,13 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'node:path';
+import { assertSandboxEnabled } from './security';
 import { TraceMonitor } from './trace-monitor/TraceMonitor';
 import { HermesMonitor } from './trace-monitor/HermesMonitor';
 import { MultiSourceMonitor } from './trace-monitor/MultiSourceMonitor';
+
+// Fail closed even if an AppImage runtime or a .desktop launcher adds --no-sandbox.
+// Electron's renderer sandbox flag alone cannot countermand that Chromium flag.
+assertSandboxEnabled(process.argv, (name) => app.commandLine.hasSwitch(name));
 
 let window: BrowserWindow | null = null;
 const idle = Number(process.env.AGENT_MONITOR_IDLE_MS);
@@ -27,6 +32,14 @@ function createWindow() {
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
   window.once('ready-to-show', () => { window?.show(); window?.maximize(); });
   window.webContents.setWindowOpenHandler(() => ({action: 'deny'}));
+  window.webContents.on('will-attach-webview', event => event.preventDefault());
+  // CSP is the first line of defense. Also block renderer network requests at
+  // the Electron session layer in production (including future UI additions).
+  if (app.isPackaged) {
+    window.webContents.session.webRequest.onBeforeRequest({urls: ['<all_urls>']}, (details, callback) => {
+      callback({cancel: /^(?:https?|wss?|ftp):/i.test(details.url)});
+    });
+  }
   window.webContents.on('will-navigate', event => event.preventDefault());
   window.webContents.session.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
   window.on('closed', () => { window = null; });

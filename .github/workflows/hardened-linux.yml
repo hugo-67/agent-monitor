@@ -1,0 +1,68 @@
+name: Hardened Linux AppImage
+
+on:
+  push:
+    branches:
+      - security/hardened-ubuntu-appimage-20261013
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      # Update package-lock.json reproducibly for the patched Electron release.
+      # Commit the lock only after the full build and checks succeed.
+      - name: Lock patched Electron
+        run: npm install --package-lock-only --ignore-scripts --no-audit --save-exact electron@44.7.0
+
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Security audit
+        run: npm audit --audit-level=high
+      - name: Unit and regression tests
+        run: npm test
+      - name: Build
+        run: npm run build
+      - name: Package Linux AppImage
+        run: npx electron-builder --linux AppImage --publish never
+      - name: Inspect packaged sandbox protections
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          images=(release/*.AppImage)
+          test "${#images[@]}" -eq 1
+          node scripts/check-appimage-security.mjs "${images[0]}"
+          ( cd release && sha256sum -- *.AppImage > SHA256SUMS.txt )
+      - name: Upload hardened AppImage and hashes
+        uses: actions/upload-artifact@v4
+        with:
+          name: hardened-agent-monitor-linux-x64
+          if-no-files-found: error
+          retention-days: 90
+          path: |
+            release/*.AppImage
+            release/SHA256SUMS.txt
+      - name: Commit refreshed dependency lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! git diff --quiet -- package-lock.json; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add package-lock.json
+            git commit -m "chore: lock Electron 44.7.0 for hardened Linux build"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi

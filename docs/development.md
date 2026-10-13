@@ -40,3 +40,30 @@ npm start
 `npm run dist` packages installers for the current platform into `release/` using `electron-builder.yml` (macOS `.dmg`/`.zip`, Windows NSIS `.exe`, Linux `.AppImage`). Builds are unsigned; macOS builds are ad-hoc signed so Apple Silicon can open them.
 
 Pushing a `v*` tag runs `.github/workflows/release.yml`, which packages on macOS, Windows, and Linux runners and publishes a GitHub release with `.github/release-notes.md`. Bump `version` in `package.json` before tagging.
+
+
+## Hardened Ubuntu AppImage
+
+Security-hardened builds intentionally require Chromium's user-namespace sandbox.
+`electron-builder` v26 otherwise emits an unsafe `--no-sandbox` desktop launch
+argument. `appImage.executableArgs` replaces that default, and the main process
+rejects `--no-sandbox` and `--disable-sandbox`, including flags inserted
+automatically by the AppImage runtime on restricted hosts.
+
+Test namespace availability on your Linux host with
+`unshare -Ur true`. A successful namespace probe alone does **not**
+prove that the Chromium sandbox initialized, but a failed probe signals that
+you should not run the AppImage without fixing host configuration. In
+particular, do not add `--no-sandbox` just to work around launch errors.
+
+The packaged renderer additionally denies outgoing HTTP(S), WebSocket and FTP
+requests at the Electron session layer; its production CSP uses
+`connect-src 'none'`. This is not a complete OS-level network sandbox for
+the privileged main process. For stronger compartmentalization, run as a
+low-privilege user with read-only traces and no network access.
+
+Security branch CI runs tests, refreshes and commits the lockfile for
+Electron 44.7.0, checks npm vulnerabilities, builds a Linux AppImage,
+extracts it without launching the GUI, verifies desktop Exec flags and the
+bundled fail-closed guard, and uploads the AppImage plus SHA-256 checksums.
+The checks do not replace dynamic sandbox or malicious-native-code analysis.
