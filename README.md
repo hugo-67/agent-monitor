@@ -55,3 +55,19 @@ Switch to **By model** to see tokens and cost grouped by model.
 - [Development and production builds](docs/development.md)
 - [Pricing sources and assumptions](docs/token-pricing.md)
 - [Product specification](SPEC.md)
+
+## Ubuntu 24.04+ installation (security preview)
+
+If your AppImage reports *"refuses to start without the Chromium sandbox"*,
+the Ubuntu AppArmor user-namespace restriction is blocking its startup.
+Do **not** add `--no-sandbox` or disable AppArmor globally.
+
+Download the fixed
+[Ubuntu .deb or AppImage setup script](https://github.com/hugo-67/agent-monitor/releases/tag/ubuntu-sandbox-fix-20261013).
+On Ubuntu, the `.deb` is recommended:
+`sudo apt install ./agent-monitor-*.deb`.
+
+If you prefer the portable AppImage, use
+`bash setup-ubuntu-appimage.sh /absolute/path/to/agent-monitor-*.AppImage`
+once before launching. It adds an AppArmor allowance for that exact file.
+See [the development guide](docs/development.md).
