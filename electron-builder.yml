@@ -43,9 +43,16 @@ nsis:
 
 linux:
   category: Development
+  executableName: agent-monitor
   target:
     - target: AppImage
       arch: [x64]
+    - target: deb
+      arch: [x64]
+
+# Ubuntu 24.04+ supports per-app user namespace AppArmor permissions.
+deb:
+  appArmorProfile: build/apparmor-profile
 
 # Override electron-builder v26's unsafe default .desktop Exec=AppRun --no-sandbox.
 # The AppImage runtime may still append --no-sandbox on systems where user
