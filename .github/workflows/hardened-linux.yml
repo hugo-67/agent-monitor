@@ -25,7 +25,9 @@ jobs:
       # Update package-lock.json reproducibly for the patched Electron release.
       # Commit the lock only after the full build and checks succeed.
       - name: Lock patched Electron
-        run: npm install --package-lock-only --ignore-scripts --no-audit --save-exact electron@44.7.0
+        run: npm install --package-lock-only --ignore-scripts --no-audit --save-dev --save-exact electron@44.7.0
+      - name: Refresh vulnerable transitive dependency versions
+        run: npm audit fix --package-lock-only --ignore-scripts --no-fund --audit-level=high
 
       - name: Install locked dependencies
         run: npm ci
