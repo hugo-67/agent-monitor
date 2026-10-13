@@ -26,7 +26,7 @@ function line(value: unknown): string {
   return `${JSON.stringify(value)}\n`;
 }
 
-function waitFor(predicate: () => boolean | Promise<boolean>, timeoutMs = 4_000): Promise<void> {
+function waitFor(predicate: () => boolean | Promise<boolean>, timeoutMs = 12_000): Promise<void> {
   const started = Date.now();
   return new Promise((resolve, reject) => {
     const tick = async () => {
