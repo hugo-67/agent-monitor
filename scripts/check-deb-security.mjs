@@ -13,6 +13,11 @@ try {
   if (!contents.includes('/opt/Agent Monitor/agent-monitor')) {
     throw new Error('Expected Agent Monitor binary path was not packaged');
   }
+  console.log('DEB AppArmor paths:', contents.split('
+').filter(line => /apparmor/i.test(line)));
+  console.log('DEB control files:', readdirSync(join(dir,'control')));
+  const postDbg = join(dir,'control','postinst');
+  try { console.log('DEB postinst:', readFileSync(postDbg,'utf8').slice(0,5500)); } catch {}
   if (!contents.includes('/etc/apparmor.d/')) {
     throw new Error('Expected installed AppArmor profile is missing');
   }
