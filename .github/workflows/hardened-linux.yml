@@ -1,4 +1,4 @@
-name: Hardened Linux AppImage
+name: Hardened Ubuntu Packages
 
 on:
   push:
@@ -22,25 +22,20 @@ jobs:
           node-version: '22'
           cache: npm
 
-      # Update package-lock.json reproducibly for the patched Electron release.
-      # Commit the lock only after the full build and checks succeed.
-      - name: Lock patched Electron
-        run: npm install --package-lock-only --ignore-scripts --no-audit --save-dev --save-exact electron@44.7.0
-      - name: Refresh vulnerable transitive dependency versions
-        run: npm audit fix --package-lock-only --ignore-scripts --no-fund --audit-level=high
-
       - name: Install locked dependencies
         run: npm ci
       - name: Security audit
         run: npm audit --audit-level=high
+      - name: Validate Ubuntu setup helper syntax
+        run: bash -n scripts/setup-ubuntu-appimage.sh
       - name: Unit and regression tests
         env:
           AGENT_MONITOR_POLLING: '1'
         run: npm test
       - name: Build
         run: npm run build
-      - name: Package Linux AppImage
-        run: npx electron-builder --linux AppImage --publish never
+      - name: Package AppImage and Ubuntu DEB
+        run: npx electron-builder --linux AppImage deb --publish never
       - name: Inspect packaged sandbox protections
         shell: bash
         run: |
@@ -49,40 +44,34 @@ jobs:
           images=(release/*.AppImage)
           test "${#images[@]}" -eq 1
           node scripts/check-appimage-security.mjs "${images[0]}"
-          ( cd release && sha256sum -- *.AppImage > SHA256SUMS.txt )
-      - name: Upload hardened AppImage and hashes
+          debs=(release/*.deb)
+          test "${#debs[@]}" -eq 1
+          node scripts/check-deb-security.mjs "${debs[0]}"
+          ( cd release && sha256sum -- *.AppImage *.deb > SHA256SUMS.txt )
+      - name: Upload hardened Ubuntu installers and checksums
         uses: actions/upload-artifact@v4
         with:
-          name: hardened-agent-monitor-linux-x64
+          name: hardened-agent-monitor-ubuntu-x64
           if-no-files-found: error
           retention-days: 90
           path: |
             release/*.AppImage
+            release/*.deb
             release/SHA256SUMS.txt
-      - name: Commit refreshed dependency lock
-        shell: bash
-        run: |
-          set -euo pipefail
-          if ! git diff --quiet -- package-lock.json; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add package-lock.json
-            git commit -m "chore: lock Electron 44.7.0 for hardened Linux build"
-            git push origin "HEAD:${GITHUB_REF_NAME}"
-          fi
+            scripts/setup-ubuntu-appimage.sh
       - name: Publish hardened pre-release for direct download
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          tag="security-preview-20261013"
+          tag="ubuntu-sandbox-fix-20261013"
           if gh release view "$tag" >/dev/null 2>&1; then
-            gh release upload "$tag" release/*.AppImage release/SHA256SUMS.txt --clobber
+            gh release upload "$tag" release/*.AppImage release/*.deb release/SHA256SUMS.txt scripts/setup-ubuntu-appimage.sh --clobber
           else
-            gh release create "$tag" release/*.AppImage release/SHA256SUMS.txt \
+            gh release create "$tag" release/*.AppImage release/*.deb release/SHA256SUMS.txt scripts/setup-ubuntu-appimage.sh \
               --target "$(git rev-parse HEAD)" \
-              --title "Hardened Ubuntu Agent Monitor (security preview)" \
-              --notes "Ubuntu x86_64 security preview from hardened security branch. Includes Electron 44.7.0, patched npm dependencies, fail-closed Chromium sandbox enforcement, offline renderer policy, CI tests and packaged-binary checks. On hosts without Chromium user-namespace sandbox support the application intentionally refuses to launch. Check SHA256SUMS.txt before use." \
+              --title "Agent Monitor Ubuntu sandbox compatibility fix" \
+              --notes "Fix for Ubuntu 24.04+ sandbox startup: install the .deb using sudo apt install ./agent-monitor-*.deb (recommended: bundled per-app AppArmor profile) OR configure an existing AppImage using bash setup-ubuntu-appimage.sh /absolute/path/to/the.AppImage. No global security relaxation or Chromium sandbox bypass. See docs/development.md." \
               --prerelease
           fi
