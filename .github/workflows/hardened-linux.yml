@@ -34,6 +34,8 @@ jobs:
       - name: Security audit
         run: npm audit --audit-level=high
       - name: Unit and regression tests
+        env:
+          AGENT_MONITOR_POLLING: '1'
         run: npm test
       - name: Build
         run: npm run build
@@ -67,4 +69,20 @@ jobs:
             git add package-lock.json
             git commit -m "chore: lock Electron 44.7.0 for hardened Linux build"
             git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
+      - name: Publish hardened pre-release for direct download
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="security-preview-20261013"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" release/*.AppImage release/SHA256SUMS.txt --clobber
+          else
+            gh release create "$tag" release/*.AppImage release/SHA256SUMS.txt \
+              --target "$(git rev-parse HEAD)" \
+              --title "Hardened Ubuntu Agent Monitor (security preview)" \
+              --notes "Ubuntu x86_64 security preview from hardened security branch. Includes Electron 44.7.0, patched npm dependencies, fail-closed Chromium sandbox enforcement, offline renderer policy, CI tests and packaged-binary checks. On hosts without Chromium user-namespace sandbox support the application intentionally refuses to launch. Check SHA256SUMS.txt before use." \
+              --prerelease
           fi

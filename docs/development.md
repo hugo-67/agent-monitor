@@ -67,3 +67,7 @@ Electron 44.7.0, checks npm vulnerabilities, builds a Linux AppImage,
 extracts it without launching the GUI, verifies desktop Exec flags and the
 bundled fail-closed guard, and uploads the AppImage plus SHA-256 checksums.
 The checks do not replace dynamic sandbox or malicious-native-code analysis.
+
+Set `AGENT_MONITOR_POLLING=1` to use a polling trace watcher when
+native filesystem change notifications are unavailable or unreliable.
+Polling has higher filesystem overhead than native notifications.

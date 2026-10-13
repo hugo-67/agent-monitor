@@ -270,7 +270,8 @@ export class TraceMonitor extends EventEmitter {
 
   private async startInternal(): Promise<void> {
     try {
-      let result = await this.openWatcher(false);
+      // Optional polling mode for filesystems where native watcher events are unreliable.
+      let result = await this.openWatcher(process.env.AGENT_MONITOR_POLLING === '1');
       if (result.error && isTooManyFiles(result.error)) {
         await result.watcher.close().catch(() => undefined);
         this.watcher = undefined;
