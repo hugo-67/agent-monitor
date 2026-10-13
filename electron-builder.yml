@@ -42,6 +42,7 @@ nsis:
   allowToChangeInstallationDirectory: true
 
 linux:
+  maintainer: "hugo-67 <320913724+hugo-67@users.noreply.github.com>"
   category: Development
   executableName: agent-monitor
   target:
